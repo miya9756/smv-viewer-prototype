@@ -1,0 +1,36 @@
+Copyright (c) 2026 Mingyang Song.
+
+SMV Viewer Prototype is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives
+4.0 International License (CC BY-NC-ND 4.0), except for the third-party material listed below.
+
+This covers Mingyang Song's own work in this repository: the page, its HTML, CSS and JavaScript,
+its text, and the compressed scene files under scenes/.
+
+In short, and the licence itself is what governs: you may copy and redistribute this material in
+any medium or format, provided you give appropriate credit, do not use it for commercial purposes,
+and do not distribute modified versions of it.
+
+To view a copy of this licence, visit https://creativecommons.org/licenses/by-nc-nd/4.0/
+The full legal code is at https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode
+
+
+THIRD-PARTY MATERIAL -- NOT COVERED BY THE ABOVE
+
+Parts of this repository are not Mingyang Song's work. They remain under the licences of their
+original authors, and nothing in this file grants, restricts or restates any right in them.
+
+  vendor/ffmpeg/, vendor/core/, vendor/util/
+      ffmpeg.wasm and the FFmpeg core it embeds.
+      https://github.com/ffmpegwasm/ffmpeg.wasm -- https://ffmpeg.org/
+
+  vendor/fflate.js
+      fflate, MIT. https://github.com/101arrowz/fflate
+
+  the WebGL2 splat rasterizer inside index.html
+      after antimatter15's `splat`. https://github.com/antimatter15/splat
+
+  the scenes under scenes/
+      reconstructions of captures from the Neural 3D Video dataset (Li et al., CVPR 2022) and the
+      MeetRoom dataset (Li et al., NeurIPS 2022). The captured content remains subject to those
+      datasets' own terms; the licence above covers the compressed encoding, not the people and
+      places it depicts.
