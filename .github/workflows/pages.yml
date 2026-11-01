@@ -1,0 +1,104 @@
+name: Check and deploy to GitHub Pages
+
+# Every push and pull request runs the checks; a push to main then publishes the repository as it
+# stands. There is no build: the page, the decode modules, vendor/ and the scenes are served as-is.
+# Requires Settings -> Pages -> Source: "GitHub Actions".
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # A syntax error in the page's module throws before anything renders and leaves the
+      # viewer blank, which nothing else here would catch. --check parses without running.
+      - name: Syntax-check the JavaScript
+        run: |
+          set -euo pipefail
+          tmp="$RUNNER_TEMP/js"; mkdir -p "$tmp"
+          for f in decode.js decode_motion.js; do cp "$f" "$tmp/$f.mjs"; node --check "$tmp/$f.mjs"; done
+          for f in dequant_worker.js sw.js; do node --check "$f"; done
+          node -e '
+            const fs = require("fs"), src = fs.readFileSync("index.html", "utf8");
+            const mods = [...src.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)];
+            const classic = [...src.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+            if (mods.length !== 1) throw new Error(`expected 1 module script, found ${mods.length}`);
+            fs.writeFileSync(process.argv[1] + "/page.mjs", mods[0][1]);
+            classic.forEach((m, i) => fs.writeFileSync(`${process.argv[1]}/classic${i}.js`, m[1]));
+          ' "$tmp"
+          for f in "$tmp"/page.mjs "$tmp"/classic*.js; do node --check "$f"; done
+          echo "JavaScript parses."
+
+      # The picker is built from scenes.json, so an entry whose zip is missing only fails when a
+      # visitor presses Load. Each entry also needs the camera the opening view is built from.
+      - name: Every scene in scenes.json is in the repository
+        run: |
+          set -euo pipefail
+          jq -e 'length > 0' scenes.json > /dev/null
+          bad=$(jq -r '.[] | select((.cam | type) != "object" or ([.cam | .fovx, .fovy, .width, .height, .campos, .camquat] | any(. == null))) | .name' scenes.json)
+          if [ -n "$bad" ]; then echo "entries without a complete camera:"; echo "$bad"; exit 1; fi
+          missing=0
+          while IFS= read -r url; do
+            if [ ! -f "$url" ]; then echo "missing: $url"; missing=1; fi
+          done < <(jq -r '.[].url' scenes.json)
+          [ "$missing" = 0 ]
+          echo "$(jq length scenes.json) scenes, all present."
+
+      # The modules import each other and vendor/ by relative path; a file left out of a copy
+      # breaks the decoder for every scene at once.
+      - name: Every referenced local file exists
+        run: |
+          set -euo pipefail
+          missing=0
+          for f in index.html decode.js decode_motion.js dequant_worker.js sw.js scenes.json \
+                   vendor/fflate.js vendor/ffmpeg/index.js vendor/ffmpeg/worker.js vendor/util/index.js \
+                   vendor/core/ffmpeg-core.js vendor/core/ffmpeg-core.wasm LICENSE; do
+            if [ ! -f "$f" ]; then echo "missing: $f"; missing=1; fi
+          done
+          [ "$missing" = 0 ]
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # One deploy at a time; let a running one finish rather than cancel a publish.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # upload-pages-artifact leaves .git and .github out of the archive.
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

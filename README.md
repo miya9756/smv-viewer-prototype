@@ -25,6 +25,14 @@ python3 -m http.server 8000
 
 and open <http://localhost:8000>.
 
+## Deploy
+
+`.github/workflows/pages.yml` runs on every push and pull request. It syntax-checks the
+JavaScript, confirms every `scenes.json` entry has its zip and a complete camera, and confirms
+the vendored decoder is all there. A push to `main` then publishes the repository to GitHub Pages
+as it stands, with no build step. Pages must be set to **Settings → Pages → Source: GitHub
+Actions**.
+
 ## Layout
 
 | Path | What it is |
